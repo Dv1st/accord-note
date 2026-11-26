@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тренажёр нот и аккордов</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 2vh, 18px);
+    padding: clamp(12px, 3vw, 28px);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #e8ecff;
+    background:
+      radial-gradient(1000px 500px at 50% -10%, #2c3355 0%, transparent 62%),
+      radial-gradient(700px 400px at 85% 110%, #1d2a44 0%, transparent 60%),
+      #0d0f18;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .title {
+    font-size: 13px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: #8b95c9;
+    font-weight: 600;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 999px;
+  }
+  .mode-tab {
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 0;
+    background: transparent;
+    color: #8b95c9;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .mode-tab:hover { color: #c8d0f0; }
+  .mode-tab.active {
+    background: linear-gradient(180deg, #c9d5ff, #7f9cff);
+    color: #0d0f18;
+    box-shadow: 0 4px 12px -3px rgba(120,150,255,.5);
+  }
+
+  .card {
+    width: min(560px, 100%);
+    padding: clamp(24px, 5vw, 40px) clamp(16px, 4vw, 28px) clamp(14px, 3vw, 20px);
+    border-radius: 26px;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 30px 60px -30px #000, inset 0 1px 0 rgba(255,255,255,.1);
+    transition: box-shadow .3s, border-color .3s;
+  }
+  .card.correct {
+    border-color: rgba(34,197,94,.65);
+    box-shadow: 0 0 90px -10px rgba(34,197,94,.6),
+                inset 0 1px 0 rgba(255,255,255,.1);
+  }
+
+  .note-name {
+    font-size: clamp(64px, 16vw, 130px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.02em;
+    background: linear-gradient(180deg, #ffffff 15%, #9fb4ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 30px rgba(120,150,255,.35));
+  }
+  .note-name.pop { animation: pop .35s ease; }
+
+  .note-octave {
+    margin-top: 12px;
+    font-size: clamp(17px, 2.8vw, 22px);
+    color: #9aa4c9;
+    font-weight: 500;
+    min-height: 1.2em;
+  }
+
+  .chord-name {
+    font-size: clamp(22px, 5vw, 46px);
+    font-weight: 800;
+    line-height: 1.15;
+    background: linear-gradient(180deg, #ffffff 15%, #9fb4ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 20px rgba(120,150,255,.3));
+    padding: 0 8px;
+  }
+  .chord-name.pop { animation: pop .35s ease; }
+
+  .chord-notes {
+    margin-top: 10px;
+    font-size: clamp(15px, 2.5vw, 19px);
+    color: #9aa4c9;
+    font-weight: 500;
+    letter-spacing: .02em;
+  }
+
+  @keyframes pop {
+    0%   { transform: scale(.7); opacity: 0; }
+    60%  { transform: scale(1.06); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .mini-piano {
+    position: relative;
+    display: flex;
+    height: clamp(50px, 10vw, 68px);
+    margin-top: 18px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #1a1e2e;
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow: inset 0 -4px 10px rgba(0,0,0,.3);
+  }
+  .mini-key { position: relative; transition: background .25s; }
+  .mini-white {
+    flex: 1 1 0;
+    background: linear-gradient(180deg, #e8eaf5 0%, #c8cce0 100%);
+    border-right: 1px solid #a0a4ba;
+  }
+  .mini-white:last-child { border-right: 0; }
+  .mini-white.active {
+    background: linear-gradient(180deg, #8fa9ff 0%, #5a7ae0 100%);
+    box-shadow: inset 0 0 15px rgba(200,220,255,.4);
+  }
+  .mini-black {
+    position: absolute;
+    top: 0;
+    height: 62%;
+    background: linear-gradient(180deg, #2a2d3d 0%, #0a0c15 100%);
+    z-index: 2;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,.5);
+  }
+  .mini-black.active {
+    background: linear-gradient(180deg, #7b8fdf 0%, #3a4a9a 100%);
+    box-shadow: 0 0 12px rgba(100,130,255,.8);
+  }
+
+  .mic-bar {
+    height: 4px;
+    background: rgba(255,255,255,.06);
+    border-radius: 2px;
+    margin-top: 18px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .mic-bar.active { opacity: 1; }
+  .mic-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #7f9cff, #4ade80);
+    border-radius: 2px;
+    transition: width .06s linear;
+  }
+
+  .row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .next-btn, .mic-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    padding: 13px 28px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .12s, filter .12s, background .2s;
+    font-family: inherit;
+  }
+  .next-btn {
+    color: #0d0f18;
+    background: linear-gradient(180deg, #c9d5ff, #7f9cff);
+    box-shadow: 0 12px 30px -10px rgba(120,150,255,.6),
+                inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .next-btn:hover  { filter: brightness(1.08); }
+  .next-btn:active { transform: translateY(1px) scale(.99); }
+
+  .mic-btn {
+    color: #e8ecff;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  .mic-btn:hover { background: rgba(255,255,255,.1); }
+  .mic-btn.on {
+    color: #0d0f18;
+    background: linear-gradient(180deg, #6ee7a8, #22c55e);
+    border-color: transparent;
+    box-shadow: 0 12px 30px -10px rgba(34,197,94,.6);
+  }
+  .mic-btn:disabled { opacity: .6; cursor: wait; }
+
+  .status {
+    min-height: 22px;
+    font-size: 14px;
+    color: #8b95c9;
+    text-align: center;
+    transition: color .18s;
+    max-width: 560px;
+    padding: 0 12px;
+  }
+  .status.ok  { color: #4ade80; }
+  .status.bad { color: #fb7185; }
+
+  .settings { width: min(560px, 100%); font-size: 14px; }
+  .settings summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    color: #9aa4c9;
+    list-style: none;
+    text-align: center;
+  }
+  .settings summary::-webkit-details-marker { display: none; }
+  .settings[open] summary { border-radius: 12px 12px 0 0; }
+  .settings-body {
+    padding: 14px;
+    border-radius: 0 0 12px 12px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-top: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .settings-group {
+    width: 100%;
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: #6b7495;
+    text-align: center;
+    margin: 4px 0 2px;
+  }
+  .settings-body label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    cursor: pointer;
+    font-size: 13px;
+    color: #9aa4c9;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .settings-body label:has(input:checked) {
+    background: rgba(127,156,255,.18);
+    border-color: rgba(127,156,255,.5);
+    color: #e8ecff;
+  }
+  .settings-body input { accent-color: #7f9cff; }
+</style>
+</head>
+<body>
+
+  <div class="title" id="appTitle">Тренажёр</div>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="notes" type="button">🎵 Ноты</button>
+    <button class="mode-tab" data-mode="chords" type="button">🎹 Аккорды</button>
+  </div>
+
+  <div class="card" id="card">
+    <div id="contentNotes">
+      <div class="note-name" id="noteName">—</div>
+      <div class="note-octave" id="noteOctave">Нажмите «Следующая»</div>
+    </div>
+    <div id="contentChords" style="display:none">
+      <div class="chord-name" id="chordName">—</div>
+      <div class="chord-notes" id="chordNotes"></div>
+      <div class="mini-piano" id="miniPiano"></div>
+    </div>
+    <div class="mic-bar" id="micBar">
+      <div class="mic-bar-fill" id="micBarFill"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="next-btn" id="nextBtn" type="button">Следующая →</button>
+    <button class="mic-btn" id="micBtn" type="button">🎤 Микрофон</button>
+  </div>
+
+  <div class="status" id="status">Сыграйте ноту или аккорд</div>
+
+  <details class="settings">
+    <summary>Настройки</summary>
+    <div class="settings-body" id="settingsBody"></div>
+  </details>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ============ CONSTANTS ============ */
+  const NOTE_NAMES = ['До','До♯','Ре','Ре♯','Ми','Фа','Фа♯','Соль','Соль♯','Ля','Ля♯','Си'];
+  const OCTAVE_NAMES = {
+    0: 'субконтроктавы', 1: 'контроктавы', 2: 'большой октавы',
+    3: 'малой октавы', 4: 'первой октавы', 5: 'второй октавы',
+    6: 'третьей октавы', 7: 'четвёртой октавы',
+  };
+  const OCTAVE_LABELS = {
+    0: 'Субконтр', 1: 'Контр', 2: 'Большая', 3: 'Малая',
+    4: 'Первая', 5: 'Вторая', 6: 'Третья', 7: 'Четвёртая',
+  };
+  const WHITE = [0, 2, 4, 5, 7, 9, 11];
+  const BLACK = [1, 3, 6, 8, 10];
+  const BLACK_AFTER = { 1: 0, 3: 1, 6: 3, 8: 4, 10: 5 };
+
+  const CHORD_TYPES = {
+    major:      { name: 'мажор',        intervals: [0, 4, 7] },
+    minor:      { name: 'минор',        intervals: [0, 3, 7] },
+    diminished: { name: 'уменьшённый',  intervals: [0, 3, 6] },
+    augmented:  { name: 'увеличенный',  intervals: [0, 4, 8] },
+  };
+
+  const PRAISE = ['Верно!', 'Точно!', 'Отлично!', 'Есть!', 'Так держать!', 'В яблочко!'];
+
+  /* ============ STATE ============ */
+  const state = {
+    mode: 'notes',
+    target: null,
+    chord: null,
+    enabledOctaves: new Set([1, 2, 3, 4, 5]),
+    includeAccidentals: true,
+    enabledChordTypes: new Set(['major', 'minor']),
+    locked: false,
+    cooldownUntil: 0,
+  };
+
+  const mic = {
+    enabled: false, ctx: null, stream: null,
+    yinAnalyser: null, fftAnalyser: null,
+    yinBuf: null, fftBuf: null, timeBuf: null,
+    loopTimer: null,
+    lastMidi: -1, lastReportedMidi: -1, stableCount: 0, lastDetectTime: 0,
+    detectedNotes: new Map(),
+    lastStatusKey: '',
+  };
+
+  /* ============ ELEMENTS ============ */
+  const cardEl       = document.getElementById('card');
+  const contentNotes = document.getElementById('contentNotes');
+  const contentChords= document.getElementById('contentChords');
+  const noteNameEl   = document.getElementById('noteName');
+  const noteOctaveEl = document.getElementById('noteOctave');
+  const chordNameEl  = document.getElementById('chordName');
+  const chordNotesEl = document.getElementById('chordNotes');
+  const miniPianoEl  = document.getElementById('miniPiano');
+  const nextBtn      = document.getElementById('nextBtn');
+  const micBtn       = document.getElementById('micBtn');
+  const statusEl     = document.getElementById('status');
+  const settingsBody = document.getElementById('settingsBody');
+  const micBarEl     = document.getElementById('micBar');
+  const micBarFillEl = document.getElementById('micBarFill');
+  const appTitleEl   = document.getElementById('appTitle');
+
+  /* ============ NOTE MODE ============ */
+  function randomNote() {
+    const octs = [...state.enabledOctaves];
+    if (octs.length === 0) return null;
+    const pool = [];
+    for (const oct of octs) {
+      const idxs = state.includeAccidentals ? Array.from({length:12},(_,i)=>i) : WHITE;
+      for (const i of idxs) pool.push({ octave: oct, noteIndex: i });
+    }
+    let candidates = pool;
+    if (state.target) {
+      const filtered = pool.filter(p =>
+        !(p.octave === state.target.octave && p.noteIndex === state.target.noteIndex)
+      );
+      if (filtered.length) candidates = filtered;
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function targetMidi() {
+    return state.target ? (state.target.octave + 1) * 12 + state.target.noteIndex : -1;
+  }
+
+  function showTarget() {
+    state.target = randomNote();
+    if (!state.target) {
+      noteNameEl.textContent = '—';
+      noteOctaveEl.textContent = 'Включите хотя бы одну октаву';
+      return;
+    }
+    noteNameEl.textContent = NOTE_NAMES[state.target.noteIndex];
+    noteOctaveEl.textContent = OCTAVE_NAMES[state.target.octave] || '';
+    noteNameEl.classList.remove('pop');
+    void noteNameEl.offsetWidth;
+    noteNameEl.classList.add('pop');
+    cardEl.classList.remove('correct');
+    resetDetectState();
+  }
+
+  /* ============ CHORD MODE ============ */
+  function randomChord() {
+    const octs = [...state.enabledOctaves].filter(o => o >= 2);
+    const types = [...state.enabledChordTypes];
+    if (octs.length === 0 || types.length === 0) return null;
+
+    const oct = octs[Math.floor(Math.random() * octs.length)];
+    const rootPC = Math.floor(Math.random() * 12);
+    const typeKey = types[Math.floor(Math.random() * types.length)];
+    const intervals = CHORD_TYPES[typeKey].intervals;
+    const rootMidi = (oct + 1) * 12 + rootPC;
+
+    const notes = intervals.map(i => {
+      const midi = rootMidi + i;
+      const pc = ((midi % 12) + 12) % 12;
+      const nOct = Math.floor(midi / 12) - 1;
+      return { midi, pc, oct: nOct, name: NOTE_NAMES[pc] + nOct };
+    });
+
+    return {
+      rootPC, oct, typeKey,
+      typeName: CHORD_TYPES[typeKey].name,
+      notes,
+      name: NOTE_NAMES[rootPC] + ' ' + CHORD_TYPES[typeKey].name,
+    };
+  }
+
+  function showChord() {
+    state.chord = randomChord();
+    if (!state.chord) {
+      chordNameEl.textContent = '—';
+      chordNotesEl.textContent = 'Выберите октавы и типы аккордов';
+      miniPianoEl.innerHTML = '';
+      return;
+    }
+    chordNameEl.textContent = state.chord.name;
+    chordNotesEl.textContent = state.chord.notes.map(n => n.name).join(' · ');
+    chordNameEl.classList.remove('pop');
+    void chordNameEl.offsetWidth;
+    chordNameEl.classList.add('pop');
+    renderMiniPiano(state.chord);
+    cardEl.classList.remove('correct');
+    resetDetectState();
+  }
+
+  function renderMiniPiano(chord) {
+    miniPianoEl.innerHTML = '';
+    const midis = chord.notes.map(n => n.midi);
+    const minMidi = Math.min(...midis);
+    const maxMidi = Math.max(...midis);
+    const minOct = Math.floor(minMidi / 12) - 1;
+    const maxOct = Math.floor(maxMidi / 12) - 1;
+    const numOct = maxOct - minOct + 1;
+    const midiSet = new Set(midis);
+    const totalWhites = 7 * numOct;
+    const whiteW = 100 / totalWhites;
+
+    for (let o = 0; o < numOct; o++) {
+      const oct = minOct + o;
+      for (const pc of WHITE) {
+        const midi = (oct + 1) * 12 + pc;
+        const key = document.createElement('div');
+        key.className = 'mini-key mini-white';
+        if (midiSet.has(midi)) key.classList.add('active');
+        miniPianoEl.appendChild(key);
+      }
+    }
+    for (let o = 0; o < numOct; o++) {
+      const oct = minOct + o;
+      for (const pc of BLACK) {
+        const midi = (oct + 1) * 12 + pc;
+        const afterIdx = BLACK_AFTER[pc] + o * 7;
+        const key = document.createElement('div');
+        key.className = 'mini-key mini-black';
+        if (midiSet.has(midi)) key.classList.add('active');
+        key.style.left = `calc(${(afterIdx + 1) * whiteW}% - ${whiteW * 0.3}%)`;
+        key.style.width = `${whiteW * 0.6}%`;
+        miniPianoEl.appendChild(key);
+      }
+    }
+  }
+
+  /* ============ SHARED ============ */
+  function resetDetectState() {
+    mic.lastMidi = -1;
+    mic.lastReportedMidi = -1;
+    mic.stableCount = 0;
+    mic.detectedNotes.clear();
+    mic.lastStatusKey = '';
+    state.cooldownUntil = 0;
+  }
+
+  function newChallenge() {
+    if (state.mode === 'notes') showTarget();
+    else showChord();
+    statusEl.textContent = 'Слушаю... сыграйте ' + (state.mode === 'notes' ? 'ноту' : 'аккорд');
+    statusEl.className = 'status';
+  }
+
+  function onCorrect() {
+    state.locked = true;
+    cardEl.classList.add('correct');
+    statusEl.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+    statusEl.className = 'status ok';
+    setTimeout(() => {
+      state.locked = false;
+      cardEl.classList.remove('correct');
+      newChallenge();
+      state.cooldownUntil = performance.now() + 800;
+    }, 750);
+  }
+
+  /* ============ YIN (note mode) ============ */
+  function yinPitch(buf, sampleRate, minFreq, maxFreq) {
+    const SIZE = buf.length;
+    let rms = 0;
+    for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / SIZE);
+    if (rms < 0.006) return { freq: -1, rms };
+
+    const minLag = Math.max(2, Math.floor(sampleRate / maxFreq));
+    const maxLag = Math.min(Math.ceil(sampleRate / minFreq), SIZE - 2);
+    if (minLag >= maxLag) return { freq: -1, rms };
+
+    const diff = new Float32Array(maxLag + 1);
+    for (let tau = minLag; tau <= maxLag; tau++) {
+      let sum = 0;
+      const N = SIZE - tau;
+      for (let i = 0; i < N; i++) {
+        const d = buf[i] - buf[i + tau];
+        sum += d * d;
+      }
+      diff[tau] = sum / N;
+    }
+
+    const cmnd = new Float32Array(maxLag + 1);
+    let runningSum = 0;
+    for (let tau = 1; tau <= maxLag; tau++) {
+      runningSum += diff[tau];
+      cmnd[tau] = runningSum > 0 ? diff[tau] * tau / runningSum : 1;
+    }
+
+    const threshold = 0.15;
+    let tauEst = -1;
+    for (let tau = minLag; tau <= maxLag; tau++) {
+      if (cmnd[tau] < threshold) {
+        while (tau + 1 <= maxLag && cmnd[tau + 1] < cmnd[tau]) tau++;
+        tauEst = tau;
+        break;
+      }
+    }
+    if (tauEst === -1) return { freq: -1, rms };
+
+    let betterTau = tauEst;
+    if (tauEst > 0 && tauEst < maxLag) {
+      const x0 = cmnd[tauEst - 1], x1 = cmnd[tauEst], x2 = cmnd[tauEst + 1];
+      const denom = x0 - 2 * x1 + x2;
+      if (Math.abs(denom) > 1e-6) betterTau = tauEst + 0.5 * (x0 - x2) / denom;
+    }
+    return { freq: sampleRate / betterTau, rms };
+  }
+
+  /* ============ FFT PEAKS (chord mode) ============ */
+  function detectNotesFromSpectrum(freqDb, sampleRate, fftSize, minMidi, maxMidi) {
+    const binHz = sampleRate / fftSize;
+    const minFreq = 440 * Math.pow(2, (minMidi - 69) / 12) * 0.94;
+    const maxFreq = 440 * Math.pow(2, (maxMidi - 69) / 12) * 1.06;
+    const minBin = Math.max(1, Math.ceil(minFreq / binHz));
+    const maxBin = Math.min(freqDb.length - 2, Math.floor(maxFreq / binHz));
+
+    const peaks = [];
+    for (let i = minBin; i <= maxBin; i++) {
+      const db = freqDb[i];
+      if (db < -82) continue;
+      if (db > freqDb[i-1] && db >= freqDb[i+1]) {
+        const a = freqDb[i-1], b = freqDb[i], c = freqDb[i+1];
+        const denom = a - 2*b + c;
+        let shift = 0;
+        if (Math.abs(denom) > 1e-6) shift = 0.5 * (a - c) / denom;
+        shift = Math.max(-0.5, Math.min(0.5, shift));
+        const freq = (i + shift) * binHz;
+        const mag = b - 0.25 * (a - c) * shift;
+        peaks.push({ freq, mag });
+      }
+    }
+
+    peaks.sort((a, b) => b.mag - a.mag);
+    const top = peaks.slice(0, 24);
+    top.sort((a, b) => a.freq - b.freq);
+
+    const kept = [];
+    for (const p of top) {
+      let isHarmonic = false;
+      for (const k of kept) {
+        const ratio = p.freq / k.freq;
+        const nearest = Math.round(ratio);
+        if (nearest >= 2 && nearest <= 8 && Math.abs(ratio - nearest) < 0.05) {
+          if (p.mag < k.mag - 3) { isHarmonic = true; break; }
+        }
+      }
+      if (!isHarmonic) kept.push(p);
+    }
+
+    return kept.map(p => {
+      const midiFloat = 69 + 12 * Math.log2(p.freq / 440);
+      const midi = Math.round(midiFloat);
+      const cents = (midiFloat - midi) * 100;
+      return { midi, cents, mag: p.mag };
+    }).filter(p => Math.abs(p.cents) < 50);
+  }
+
+  /* ============ MIC ============ */
+  async function enableMic() {
+    if (mic.enabled) { disableMic(); return; }
+    try {
+      micBtn.disabled = true;
+      micBtn.textContent = '⏳ Подключение...';
+
+      mic.stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+
+      mic.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (mic.ctx.state === 'suspended') await mic.ctx.resume();
+
+      const src = mic.ctx.createMediaStreamSource(mic.stream);
+
+      mic.yinAnalyser = mic.ctx.createAnalyser();
+      mic.yinAnalyser.fftSize = 8192;
+      mic.yinAnalyser.smoothingTimeConstant = 0;
+      mic.yinBuf = new Float32Array(mic.yinAnalyser.fftSize);
+      src.connect(mic.yinAnalyser);
+
+      mic.fftAnalyser = mic.ctx.createAnalyser();
+      mic.fftAnalyser.fftSize = 16384;
+      mic.fftAnalyser.smoothingTimeConstant = 0.3;
+      mic.fftBuf = new Float32Array(mic.fftAnalyser.frequencyBinCount);
+      mic.timeBuf = new Float32Array(mic.fftAnalyser.fftSize);
+      src.connect(mic.fftAnalyser);
+
+      mic.enabled = true;
+      micBtn.disabled = false;
+      micBtn.textContent = '🎤 Микрофон вкл';
+      micBtn.classList.add('on');
+      micBarEl.classList.add('active');
+      statusEl.textContent = 'Слушаю... сыграйте ' + (state.mode === 'notes' ? 'ноту' : 'аккорд');
+      statusEl.className = 'status';
+
+      detectLoop();
+    } catch (e) {
+      micBtn.disabled = false;
+      micBtn.textContent = '🎤 Микрофон';
+      statusEl.textContent = 'Не удалось включить микрофон: ' + (e.message || e.name);
+      statusEl.className = 'status bad';
+    }
+  }
+
+  function disableMic() {
+    mic.enabled = false;
+    if (mic.loopTimer) { clearTimeout(mic.loopTimer); mic.loopTimer = null; }
+    if (mic.stream) { mic.stream.getTracks().forEach(t => t.stop()); mic.stream = null; }
+    if (mic.ctx) { mic.ctx.close().catch(() => {}); mic.ctx = null; }
+    mic.yinAnalyser = mic.fftAnalyser = null;
+    mic.yinBuf = mic.fftBuf = mic.timeBuf = null;
+    resetDetectState();
+    micBtn.textContent = '🎤 Микрофон';
+    micBtn.classList.remove('on');
+    micBarEl.classList.remove('active');
+    micBarFillEl.style.width = '0%';
+    statusEl.textContent = 'Сыграйте ' + (state.mode === 'notes' ? 'ноту' : 'аккорд');
+    statusEl.className = 'status';
+  }
+
+  /* ============ DETECTION LOOP ============ */
+  function detectLoop() {
+    if (!mic.enabled) return;
+
+    mic.fftAnalyser.getFloatTimeDomainData(mic.timeBuf);
+    let rms = 0;
+    for (let i = 0; i < mic.timeBuf.length; i++) rms += mic.timeBuf[i] * mic.timeBuf[i];
+    rms = Math.sqrt(rms / mic.timeBuf.length);
+    micBarFillEl.style.width = Math.min(100, rms * 800).toFixed(0) + '%';
+
+    if (state.mode === 'notes') detectNoteFrame();
+    else detectChordFrame();
+
+    mic.loopTimer = setTimeout(detectLoop, 40);
+  }
+
+  function detectNoteFrame() {
+    const now = performance.now();
+    if (now - mic.lastDetectTime < 90) return;
+    mic.lastDetectTime = now;
+    if (state.locked || !state.target) return;
+
+    let minOct = Infinity, maxOct = -Infinity;
+    for (const o of state.enabledOctaves) {
+      if (o < minOct) minOct = o;
+      if (o > maxOct) maxOct = o;
+    }
+    if (minOct === Infinity) return;
+
+    const minMidi = (minOct + 1) * 12;
+    const maxMidi = (maxOct + 1) * 12 + 11;
+    const minFreq = 440 * Math.pow(2, (minMidi - 69) / 12) * 0.96;
+    const maxFreq = 440 * Math.pow(2, (maxMidi - 69) / 12) * 1.04;
+
+    mic.yinAnalyser.getFloatTimeDomainData(mic.yinBuf);
+    const { freq } = yinPitch(mic.yinBuf, mic.ctx.sampleRate, minFreq, maxFreq);
+
+    if (freq > 0) {
+      const midiFloat = 69 + 12 * Math.log2(freq / 440);
+      const midi = Math.round(midiFloat);
+      const cents = (midiFloat - midi) * 100;
+
+      if (Math.abs(cents) < 55) {
+        if (midi === mic.lastMidi) mic.stableCount++;
+        else { mic.lastMidi = midi; mic.stableCount = 1; }
+
+        if (mic.stableCount >= 2 && now > state.cooldownUntil) {
+          if (midi === targetMidi()) {
+            onCorrect();
+          } else if (midi !== mic.lastReportedMidi) {
+            mic.lastReportedMidi = midi;
+            const nName = NOTE_NAMES[((midi % 12) + 12) % 12];
+            const nOct = Math.floor(midi / 12) - 1;
+            if (OCTAVE_NAMES[nOct]) {
+              statusEl.textContent = 'Слышу: ' + nName + ' ' + OCTAVE_NAMES[nOct];
+              statusEl.className = 'status bad';
+            }
+          }
+        }
+      } else {
+        mic.lastMidi = -1;
+        mic.stableCount = 0;
+      }
+    }
+  }
+
+  function detectChordFrame() {
+    if (state.locked || !state.chord) return;
+    const now = performance.now();
+
+    let minOct = Infinity, maxOct = -Infinity;
+    for (const o of state.enabledOctaves) {
+      if (o < minOct) minOct = o;
+      if (o > maxOct) maxOct = o;
+    }
+    if (minOct === Infinity) return;
+
+    const minMidi = (minOct + 1) * 12;
+    const maxMidi = (maxOct + 1) * 12 + 11;
+
+    mic.fftAnalyser.getFloatFrequencyData(mic.fftBuf);
+    const notes = detectNotesFromSpectrum(
+      mic.fftBuf, mic.ctx.sampleRate, mic.fftAnalyser.fftSize, minMidi, maxMidi
+    );
+
+    for (const n of notes) mic.detectedNotes.set(n.midi, now);
+    for (const [midi, t] of mic.detectedNotes) {
+      if (now - t > 2500) mic.detectedNotes.delete(midi);
+    }
+
+    if (now <= state.cooldownUntil) return;
+
+    const needed = state.chord.notes.map(n => n.midi);
+    if (needed.every(m => mic.detectedNotes.has(m))) {
+      onCorrect();
+      return;
+    }
+
+    const recent = [...mic.detectedNotes.keys()].filter(m => now - mic.detectedNotes.get(m) < 1500);
+    const chordPCs = new Set(state.chord.notes.map(n => n.pc));
+    const recentPCs = new Set(recent.map(m => ((m % 12) + 12) % 12));
+    const extras = [...recentPCs].filter(pc => !chordPCs.has(pc));
+
+    const key = [...recentPCs].sort().join(',');
+    if (key !== mic.lastStatusKey) {
+      mic.lastStatusKey = key;
+      if (extras.length > 0) {
+        const names = [...recentPCs].sort((a,b)=>a-b).map(pc => NOTE_NAMES[pc]);
+        statusEl.textContent = 'Слышу: ' + names.join(', ');
+        statusEl.className = 'status bad';
+      } else if (recentPCs.size > 0) {
+        statusEl.textContent = 'Хорошо, добавьте остальные ноты';
+        statusEl.className = 'status';
+      } else {
+        statusEl.textContent = 'Слушаю... сыграйте аккорд';
+        statusEl.className = 'status';
+      }
+    }
+  }
+
+  /* ============ MODE SWITCH ============ */
+  function setMode(mode) {
+    if (state.mode === mode) return;
+    state.mode = mode;
+    state.locked = false;
+    state.target = null;
+    state.chord = null;
+    resetDetectState();
+
+    document.querySelectorAll('.mode-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.mode === mode);
+    });
+    contentNotes.style.display  = mode === 'notes'  ? '' : 'none';
+    contentChords.style.display = mode === 'chords' ? '' : 'none';
+    appTitleEl.textContent = mode === 'notes' ? 'Случайная нота' : 'Случайный аккорд';
+    cardEl.classList.remove('correct');
+
+    buildSettings();
+    newChallenge();
+  }
+
+  /* ============ SETTINGS ============ */
+  function buildSettings() {
+    settingsBody.innerHTML = '';
+
+    const octGroup = document.createElement('div');
+    octGroup.className = 'settings-group';
+    octGroup.textContent = 'Октавы';
+    settingsBody.appendChild(octGroup);
+
+    for (const oct of [0, 1, 2, 3, 4, 5, 6, 7]) {
+      const lbl = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = state.enabledOctaves.has(oct);
+      cb.addEventListener('change', () => {
+        if (cb.checked) state.enabledOctaves.add(oct);
+        else state.enabledOctaves.delete(oct);
+        if (!state.locked) newChallenge();
+      });
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(OCTAVE_LABELS[oct]));
+      settingsBody.appendChild(lbl);
+    }
+
+    const modeGroup = document.createElement('div');
+    modeGroup.className = 'settings-group';
+    modeGroup.textContent = state.mode === 'notes' ? 'Ноты' : 'Типы аккордов';
+    settingsBody.appendChild(modeGroup);
+
+    if (state.mode === 'notes') {
+      const lbl = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = state.includeAccidentals;
+      cb.addEventListener('change', () => {
+        state.includeAccidentals = cb.checked;
+        if (!state.locked) newChallenge();
+      });
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode('Диезы'));
+      settingsBody.appendChild(lbl);
+    } else {
+      for (const [key, def] of Object.entries(CHORD_TYPES)) {
+        const lbl = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = state.enabledChordTypes.has(key);
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.enabledChordTypes.add(key);
+          else state.enabledChordTypes.delete(key);
+          if (!state.locked) newChallenge();
+        });
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(def.name));
+        settingsBody.appendChild(lbl);
+      }
+    }
+  }
+
+  /* ============ EVENTS ============ */
+  document.querySelectorAll('.mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => setMode(tab.dataset.mode));
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (state.locked) return;
+    newChallenge();
+  });
+
+  micBtn.addEventListener('click', enableMic);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'Enter') {
+      if (e.target === nextBtn || e.target === micBtn) return;
+      e.preventDefault();
+      if (!state.locked) newChallenge();
+    }
+  });
+
+  /* ============ INIT ============ */
+  buildSettings();
+  showTarget();
+  statusEl.textContent = 'Сыграйте ноту на синтезаторе';
+})();
+</script>
+</body>
+</html>
